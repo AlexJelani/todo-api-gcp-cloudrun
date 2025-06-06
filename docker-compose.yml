@@ -6,7 +6,7 @@ services:
     container_name: todo-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: todo_db
     ports:
       - "5432:5432"
