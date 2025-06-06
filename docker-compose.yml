@@ -5,15 +5,15 @@ services:
     image: postgres:13
     container_name: todo-postgres
     environment:
-      POSTGRES_USER: postgres  # Use the default postgres user
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: todo_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d todo_db"]  # Update healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todo_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,8 +28,8 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: todo_db
-      DB_USER: postgres  # Update to match PostgreSQL user
-      DB_PASSWORD: postgres  # Update to match PostgreSQL password
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "8080:8080"
 
