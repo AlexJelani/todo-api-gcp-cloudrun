@@ -40,14 +40,17 @@ object DatabaseFactory {
     }
     
     private fun hikari(): HikariDataSource {
-        // Get database connection info from environment variables with defaults
-        val dbHost = System.getenv("DB_HOST") ?: "localhost"
-        val dbPort = System.getenv("DB_PORT") ?: "5432"
-        val dbName = System.getenv("DB_NAME") ?: "todo_db"
-        val dbUser = System.getenv("DB_USER") ?: "todo_user"
-        val dbPassword = System.getenv("DB_PASSWORD") ?: "todo_password"
+        // Check for Cloud SQL JDBC URL first (for GCP deployment)
+        val jdbcUrl = System.getenv("JDBC_URL") ?: run {
+            // Fall back to standard connection parameters for local development
+            val dbHost = System.getenv("DB_HOST") ?: "localhost"
+            val dbPort = System.getenv("DB_PORT") ?: "5432"
+            val dbName = System.getenv("DB_NAME") ?: "todo_db"
+            "jdbc:postgresql://$dbHost:$dbPort/$dbName"
+        }
         
-        val jdbcUrl = "jdbc:postgresql://$dbHost:$dbPort/$dbName"
+        val dbUser = System.getenv("DB_USER") ?: "postgres"
+        val dbPassword = System.getenv("DB_PASSWORD") ?: "postgres"
         
         val config = HikariConfig().apply {
             this.jdbcUrl = jdbcUrl
@@ -55,6 +58,13 @@ object DatabaseFactory {
             this.password = dbPassword
             
             driverClassName = "org.postgresql.Driver"
+            
+            // Add Cloud SQL Socket Factory properties if using JDBC_URL from GCP
+            if (System.getenv("JDBC_URL") != null) {
+                // These properties are already in the JDBC_URL, but we set them explicitly for clarity
+                addDataSourceProperty("socketFactory", "com.google.cloud.sql.postgres.SocketFactory")
+                addDataSourceProperty("cloudSqlInstance", jdbcUrl.substringAfter("cloudSqlInstance=").substringBefore("&"))
+            }
             
             // Pool settings
             maximumPoolSize = 5
@@ -78,6 +88,7 @@ object DatabaseFactory {
         println(" - JDBC URL: ${config.jdbcUrl}")
         println(" - Username: ${config.username}")
         println(" - Pool Size: ${config.maximumPoolSize}")
+        println(" - Environment: ${if (System.getenv("JDBC_URL") != null) "GCP Cloud SQL" else "Local/Docker"}")
         
         return HikariDataSource(config)
     }

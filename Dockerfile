@@ -2,13 +2,16 @@ FROM gradle:7.6-jdk17 as build
 
 WORKDIR /app
 COPY . .
-RUN gradle jar --no-daemon
+# Use the application plugin's installDist task
+RUN gradle installDist --no-daemon
 
 FROM openjdk:17-slim
 
 WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
+# Copy the entire distribution
+COPY --from=build /app/build/install/todo-api ./
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "app.jar"]
+# Run the start script
+CMD ["./bin/todo-api"]

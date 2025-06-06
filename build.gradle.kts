@@ -5,6 +5,7 @@ val exposed_version: String by project
 val h2_version: String by project
 val postgresql_version: String by project
 val hikari_version: String by project
+val cloud_sql_version = "1.11.0"
 
 plugins {
     kotlin("jvm") version "1.9.22"
@@ -18,6 +19,7 @@ version = "0.0.1"
 
 application {
     mainClass.set("com.example.todo.ApplicationKt")
+    applicationName = "todo-api"  // Set application name for distribution
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -44,6 +46,9 @@ dependencies {
     implementation("org.postgresql:postgresql:$postgresql_version")
     implementation("com.zaxxer:HikariCP:$hikari_version")
     
+    // Google Cloud SQL
+    implementation("com.google.cloud.sql:postgres-socket-factory:$cloud_sql_version")
+    
     // Logging
     implementation("ch.qos.logback:logback-classic:$logback_version")
     
@@ -56,21 +61,4 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
         jvmTarget = "17"
     }
-}
-
-// Configure the JAR task to create a fat JAR with all dependencies
-tasks.withType<Jar> {
-    manifest {
-        attributes["Main-Class"] = "com.example.todo.ApplicationKt"
-    }
-    
-    // This ensures all dependencies are included in the JAR
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    
-    from(sourceSets.main.get().output)
-    
-    dependsOn(configurations.runtimeClasspath)
-    from({
-        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
-    })
 }
