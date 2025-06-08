@@ -56,3 +56,13 @@ docker-compose.override.yml
 *.tar.gz
 *.rar
 hs_err_pid*
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfvars
+!terraform.tfvars.example
+.terraformrc
+terraform.rc
