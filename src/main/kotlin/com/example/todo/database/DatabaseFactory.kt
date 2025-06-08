@@ -1,8 +1,6 @@
 package com.example.todo.database
 
 import com.example.todo.models.Tasks
-import com.jcraft.jsch.JSch
-import com.jcraft.jsch.Session
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
@@ -11,11 +9,8 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
-import java.util.Properties
 
 object DatabaseFactory {
-    private var sshSession: Session? = null
-    private var localPort: Int = 0
     
     fun init() {
         try {
@@ -24,11 +19,6 @@ object DatabaseFactory {
             // Determine connection mode
             val connectionMode = determineConnectionMode()
             println("🔌 Connection mode: $connectionMode")
-            
-            // Setup SSH tunnel if needed
-            if (connectionMode == ConnectionMode.REMOTE_SSH) {
-                setupSshTunnel()
-            }
             
             val dataSource = hikari(connectionMode)
             Database.connect(dataSource)
@@ -57,43 +47,7 @@ object DatabaseFactory {
     private fun determineConnectionMode(): ConnectionMode {
         return when {
             System.getenv("JDBC_URL") != null -> ConnectionMode.GCP_CLOUD_SQL
-            System.getenv("SSH_HOST") != null -> ConnectionMode.REMOTE_SSH
-            else -> ConnectionMode.LOCAL_DOCKER
-        }
-    }
-    
-    private fun setupSshTunnel() {
-        try {
-            println("🔒 Setting up SSH tunnel...")
-            
-            val sshHost = System.getenv("SSH_HOST") ?: throw Exception("SSH_HOST environment variable is required")
-            val sshUser = System.getenv("SSH_USER") ?: throw Exception("SSH_USER environment variable is required")
-            val sshKeyPath = System.getenv("SSH_KEY_PATH")?.replace("~", System.getProperty("user.home")) 
-                ?: throw Exception("SSH_KEY_PATH environment variable is required")
-            val remotePort = System.getenv("DB_PORT")?.toInt() ?: 5432
-            
-            // Find a free local port
-            val socket = java.net.ServerSocket(0)
-            localPort = socket.localPort
-            socket.close()
-            
-            val jsch = JSch()
-            jsch.addIdentity(sshKeyPath)
-            
-            sshSession = jsch.getSession(sshUser, sshHost, 22)
-            val config = Properties()
-            config["StrictHostKeyChecking"] = "no"
-            sshSession!!.setConfig(config)
-            sshSession!!.connect()
-            
-            // Forward local port to remote database port
-            sshSession!!.setPortForwardingL(localPort, "localhost", remotePort)
-            
-            println("✅ SSH tunnel established: localhost:$localPort -> $sshHost:$remotePort")
-        } catch (e: Exception) {
-            println("❌ Failed to establish SSH tunnel")
-            e.printStackTrace()
-            throw e
+            else -> ConnectionMode.DIRECT_CONNECTION
         }
     }
     
@@ -102,21 +56,16 @@ object DatabaseFactory {
             ConnectionMode.GCP_CLOUD_SQL -> {
                 System.getenv("JDBC_URL") ?: throw Exception("JDBC_URL environment variable is required for GCP mode")
             }
-            ConnectionMode.REMOTE_SSH -> {
-                // Use the local forwarded port for the database connection
-                val dbName = System.getenv("DB_NAME") ?: "postgres_db"
-                "jdbc:postgresql://localhost:$localPort/$dbName"
-            }
-            ConnectionMode.LOCAL_DOCKER -> {
+            ConnectionMode.DIRECT_CONNECTION -> {
                 val dbHost = System.getenv("DB_HOST") ?: "localhost"
                 val dbPort = System.getenv("DB_PORT") ?: "5432"
-                val dbName = System.getenv("DB_NAME") ?: "todo_db"
+                val dbName = System.getenv("DB_NAME") ?: "postgres_db"
                 "jdbc:postgresql://$dbHost:$dbPort/$dbName"
             }
         }
         
         val dbUser = System.getenv("DB_USER") ?: "postgres"
-        val dbPassword = System.getenv("DB_PASSWORD") ?: "postgres"
+        val dbPassword = System.getenv("DB_PASSWORD") ?: "postgres_password"
         
         println("🔧 Database Configuration:")
         println(" - JDBC URL: $jdbcUrl")
@@ -155,8 +104,7 @@ object DatabaseFactory {
     }
     
     fun shutdown() {
-        sshSession?.disconnect()
-        println("🔌 SSH tunnel closed")
+        // No resources to close in direct connection mode
     }
     
     suspend fun <T> dbQuery(block: () -> T): T =
@@ -166,7 +114,6 @@ object DatabaseFactory {
 }
 
 enum class ConnectionMode {
-    LOCAL_DOCKER,
-    REMOTE_SSH,
+    DIRECT_CONNECTION,
     GCP_CLOUD_SQL
 }
