@@ -6,6 +6,7 @@ val h2_version: String by project
 val postgresql_version: String by project
 val hikari_version: String by project
 val cloud_sql_version = "1.11.0"
+val jsch_version = "0.1.55"
 
 plugins {
     kotlin("jvm") version "1.9.22"
@@ -48,6 +49,9 @@ dependencies {
     
     // Google Cloud SQL
     implementation("com.google.cloud.sql:postgres-socket-factory:$cloud_sql_version")
+    
+    // SSH Tunneling
+    implementation("com.jcraft:jsch:$jsch_version")
     
     // Logging
     implementation("ch.qos.logback:logback-classic:$logback_version")
