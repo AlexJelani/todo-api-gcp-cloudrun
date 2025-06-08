@@ -52,19 +52,18 @@ object DatabaseFactory {
         val dbUser = System.getenv("DB_USER") ?: "postgres"
         val dbPassword = System.getenv("DB_PASSWORD") ?: "postgres"
         
-        val config = HikariConfig().apply {
+        println("🔧 Database Configuration:")
+        println(" - JDBC URL: $jdbcUrl")
+        println(" - Username: $dbUser")
+        
+        val config = HikariConfig()
+        
+        // Always use JDBC URL approach
+        config.apply {
             this.jdbcUrl = jdbcUrl
             this.username = dbUser
             this.password = dbPassword
-            
-            driverClassName = "org.postgresql.Driver"
-            
-            // Add Cloud SQL Socket Factory properties if using JDBC_URL from GCP
-            if (System.getenv("JDBC_URL") != null) {
-                // These properties are already in the JDBC_URL, but we set them explicitly for clarity
-                addDataSourceProperty("socketFactory", "com.google.cloud.sql.postgres.SocketFactory")
-                addDataSourceProperty("cloudSqlInstance", jdbcUrl.substringAfter("cloudSqlInstance=").substringBefore("&"))
-            }
+            this.driverClassName = "org.postgresql.Driver"
             
             // Pool settings
             maximumPoolSize = 5
@@ -84,9 +83,6 @@ object DatabaseFactory {
             initializationFailTimeout = 10000 // Fail fast if can't connect
         }
         
-        println("🔧 HikariCP Configuration:")
-        println(" - JDBC URL: ${config.jdbcUrl}")
-        println(" - Username: ${config.username}")
         println(" - Pool Size: ${config.maximumPoolSize}")
         println(" - Environment: ${if (System.getenv("JDBC_URL") != null) "GCP Cloud SQL" else "Local/Docker"}")
         

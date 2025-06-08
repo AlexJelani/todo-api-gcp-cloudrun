@@ -1,4 +1,4 @@
-I provider "google" {
+provider "google" {
   project = var.project_id
   region  = var.region
 }
@@ -64,13 +64,21 @@ resource "google_cloud_run_service" "todo_api" {
   location = var.region
   
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale" = "10"
+      }
+    }
+    
     spec {
+      timeout_seconds = 600  # Increase timeout to 10 minutes
+      
       containers {
         image = var.container_image
         
         env {
           name  = "JDBC_URL"
-          value = "jdbc:postgresql://${google_sql_database_instance.todo_db_instance.connection_name}/todo_db?cloudSqlInstance=${google_sql_database_instance.todo_db_instance.connection_name}&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
+          value = "jdbc:postgresql:///${google_sql_database.todo_db.name}?cloudSqlInstance=${google_sql_database_instance.todo_db_instance.connection_name}&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
         }
         
         env {
@@ -83,10 +91,28 @@ resource "google_cloud_run_service" "todo_api" {
           value = var.db_password
         }
         
+        env {
+          name  = "PORT"
+          value = "8080"
+        }
+        
         resources {
           limits = {
             cpu    = "1000m"
             memory = "512Mi"
+          }
+        }
+        
+        # Configure startup probe with extended timeout
+        startup_probe {
+          initial_delay_seconds = 10
+          timeout_seconds       = 300  # 5 minutes timeout
+          period_seconds        = 10   # Check every 10 seconds
+          failure_threshold     = 30   # Allow up to 30 failures
+          
+          http_get {
+            path = "/"
+            port = 8080
           }
         }
       }

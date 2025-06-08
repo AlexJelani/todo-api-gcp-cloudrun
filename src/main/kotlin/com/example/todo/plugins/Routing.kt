@@ -11,6 +11,10 @@ import io.ktor.server.routing.*
 fun Application.configureRouting(taskRepository: TaskRepository) {
     routing {
         // Health check endpoint
+        get("/") {
+            call.respond(mapOf("status" to "UP", "message" to "Todo API is running"))
+        }
+        
         get("/health") {
             call.respond(mapOf("status" to "UP"))
         }

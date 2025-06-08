@@ -10,8 +10,13 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.cors.routing.*
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+    // Get port from environment variable PORT or default to 8080
+    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+    println("🚀 Starting server on port $port")
+    
+    embeddedServer(Netty, port = port, host = "0.0.0.0") {
+        module()
+    }.start(wait = true)
 }
 
 fun Application.module() {
